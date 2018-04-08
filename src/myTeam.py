@@ -219,6 +219,42 @@ class ParentAgent(CaptureAgent):
 
         self.beliefs[enemy].normalize()
 
+    def maxFunction(self, gameState, depth):
+        """
+        Funcio maximitzadora per obtenir el moviment (accio) més "util"
+        per l'agent de l'equip.
+        @params gameState
+        @params depth
+        @returns tuble (score, action)
+        """
+
+        # Si final
+        if depth == 0 or gameState.isOver():
+            return self.evaluationFunction(gameState), Directions.STOP
+
+        # Moviments succesors
+        actions = gameState.getLegalActions(self.index)
+
+        # HEURISTIC millors resultats si sempre hi ha moviment requerit
+        actions.remove(Directions.STOP)
+
+        # Per cada moviment possible obtenim els succesors
+        succesorStates = []
+        for action in actions:
+            succesorStates.append(gameState.generateSuccessor(self.index, action))
+
+        # Obtenim els resultats dels possibles moviments enemics
+        scores = []
+        for successorState in succesorStates:
+            scores.append(self.expectiFunction(successorState, self.enemies[0], depth)[0])
+
+        bestScore = max(scores)
+        bestIndices = [index for index in range(len(scores)) if
+                         scores[index] == bestScore]
+        chosenIndex = random.choice(bestIndices)
+
+        return bestScore, actions[chosenIndex]
+
 
 class PolsAgent(ParentAgent):
   """
