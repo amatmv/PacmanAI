@@ -22,9 +22,7 @@ import game
 #################
 
 def createTeam(
-        firstIndex, secondIndex, isRed,
-        first = 'PolsAgent', second = 'AmatsAgent'
-):
+        firstIndex, secondIndex, isRed, first = 'PolsAgent', second = 'AmatsAgent'):
   """
   This function should return a list of two agents that will form the
   team, initialized using firstIndex and secondIndex as their agent
@@ -47,7 +45,127 @@ def createTeam(
 # Agents #
 ##########
 
-class PolsAgent(CaptureAgent):
+constDepth = 2
+
+class ParentAgent(CaptureAgent):
+    def registerInitialState(self, gameState):
+        CaptureAgent.registerInitialState(self, gameState)
+
+        # Get the starting position of our agent.
+        self.start = gameState.getInitialAgentPosition(self.index)
+
+        # Get the midpoint of the board.
+        self.midWidth = gameState.data.layout.width / 2
+
+        # Get the legal positions that agents could be in.
+        self.legalPositions = [p for p in gameState.getWalls().asList(False) if p[1] > 1]
+
+        # So we can use maze distance.
+        self.distancer.getMazeDistances()
+
+        # Get our team agent indexes.
+        self.team = self.getTeam(gameState)
+
+        # Flag for offense.
+        self.offensing = False
+
+        # Get our enemy indexes.
+        self.enemies = self.getOpponents(gameState)
+
+        # Initialize the belief to be 1 at the initial position for each of the
+        # opposition agents. The beliefs will be a dictionary of dictionaries.
+        # The inner dictionaries will hold the beliefs for each agent.
+        self.beliefs = {}
+        for enemy in self.enemies:
+          self.beliefs[enemy] = util.Counter()
+          self.beliefs[enemy][gameState.getInitialAgentPosition(enemy)] = 1.
+
+    def chooseAction(self, gameState):
+        """
+        Parent action selection method.
+        This method update agent's map beliefs.
+        @param: gameState string map of game.
+        @returns str action with selected move direction ex. North
+        """
+
+        # Distances to listened sounds (list of 4 integers with distances to sounds)
+        noisyDistances = gameState.getAgentDistances()
+
+        # Makes a copy of game state
+        newState = gameState.deepCopy()
+
+        # For any enemy agent tries to get visual contact of enemy
+        for enemy in self.enemies:
+            # None if no visual contact else enemy position tuple
+            enemyPos = gameState.getAgentPosition(enemy)
+            if enemyPos:
+                new_belief = util.Counter()
+                new_belief[enemyPos] = 1.0
+                self.beliefs[enemy] = new_belief
+            else:
+                # If not visual contact observe and move
+                self.elapseTime(enemy, gameState)
+                self.observe(enemy, noisyDistances, gameState)
+
+        # Using the most probable position update the game state.
+        # In order to use expectimax we need to be able to have a set
+        # position where the enemy is starting out.
+        for enemy in self.enemies:
+            prob_pos = self.beliefs[enemy].argMax()
+            conf = game.Configuration(prob_pos, Directions.STOP)
+            newState.data.agentStates[enemy] = game.AgentState(conf, newState.isRed(prob_pos) != newState.isOnRedTeam(
+              enemy))
+
+        # TODO imp effi
+        action = self.maxFunction(newState, depth=constDepth)[1]
+
+        return action
+
+    def elapseTime(self, enemy, gameState):
+        """
+        Comprova totes les possibles posicions succesores i que sigui legal el moviment i
+        es reaparteix de manera uniforme la distribucio de probabilitats i en retorna una
+        """
+        new_belief = util.Counter()
+        # legalPositions is a list of tuples (x,y)
+        for oldPos in self.legalPositions:
+            # Get the new probability distribution.
+            newPosDist = util.Counter()
+
+            # Mirem les possibles posicions succesores
+            for i in [-1, 0, 1]:
+                for j in [-1, 0, 1]:
+                    if not (abs(i) == 1 and abs(j) == 1):
+                        pos_pos = (oldPos[0] + i, oldPos[1] + j)
+                        if pos_pos in self.legalPositions:
+                            newPosDist[pos_pos] = 1.0
+
+            # Normalize to be unifom assuming the movement is random.
+            newPosDist.normalize()
+
+            # Get the new belief distibution.
+            for newPos, prob in newPosDist.items():
+                # Update the probabilities for each of the positions.
+                new_belief[newPos] += prob * self.beliefs[enemy][oldPos]
+
+        # Normalize and update the belief.
+        new_belief.normalize()
+        self.beliefs[enemy] = new_belief
+
+    def initializeBeliefs(self, enemy):
+        """
+        Inicialitza les creencies de manera uniforme per totes les possibles posicions
+        i en normalitza les probabilitats (que la suma total sigui 1)
+        """
+        self.beliefs[enemy] = util.Counter()
+        for pos in self.legalPositions:
+            # This value of 1, could be anything since we will normalize it.
+            self.beliefs[enemy][pos] = 1.0
+
+        self.beliefs[enemy].normalize()
+
+
+class PolsAgent(ParentAgent):
   """
   A Dummy agent to serve as an example of the necessary agent structure.
   You should look at baselineTeam.py for more details about how to
