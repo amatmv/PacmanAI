@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # myTeam.py
 # ---------
 # Licensing Information:  You are free to use or extend these projects for
@@ -46,6 +47,7 @@ def createTeam(
 ##########
 
 constDepth = 2
+move_range = [-1, 0, 1]
 
 class ParentAgent(CaptureAgent):
     def registerInitialState(self, gameState):
@@ -151,6 +153,59 @@ class ParentAgent(CaptureAgent):
         # Normalize and update the belief.
         new_belief.normalize()
         self.beliefs[enemy] = new_belief
+
+    def observe(self, enemy, observation, gameState):
+        """
+        Funció d'acotament per determinar més exactament la possible
+        posició enemiga (creences).
+        @param: gameState string map of game.
+        @param: observation int list of 4 elements with noisy distance
+                between current agent and all agents.
+        """
+        # Get the noisy observation for the current enemy.
+        noisyDistance = observation[enemy]
+
+        # Get the position of the calling agent.
+        current_pos = gameState.getAgentPosition(self.index)
+
+        # Create new dictionary to hold the new beliefs for the current enemy.
+        new_belief = util.Counter()
+
+        # Actualitzem les creences de les posicions legalse del tauler.
+        for p in self.legalPositions:
+            # Distancia real entre l'agent actual i la posicio iteració
+            trueDistance = util.manhattanDistance(current_pos, p)
+
+            # Probabilitat tenint en compte la distancia real i la probable
+            # P(e_t|x_t).
+            emissionModel = gameState.getDistanceProb(trueDistance, noisyDistance)
+
+            # Pode, descartar que una posicio sigui real
+            # comrovant el tipus d'agent que es pacman o fasntasma i sapiguent
+            # a quin camp es troba.
+            if self.red:
+                pac = p[0] < self.midWidth
+            else:
+                pac = p[0] > self.midWidth
+
+            # Si la distancia real es inferior a 6 la descartem perque tindria
+            # visio de l'objectiu i no estaria al vector de distancies de sons
+            # si no a les distancies reals
+            if trueDistance <= 5:
+                new_belief[p] = 0.
+            elif pac != gameState.getAgentState(enemy).isPacman:
+                new_belief[p] = 0.
+            else:
+                # P(x_t|e_1:t) = P(x_t|e_1:t) * P(e_t:x_t).
+                new_belief[p] = self.beliefs[enemy][p] * emissionModel
+
+        # Si no tenim creences inicialitzem de manera uniforme per cada posicio
+        # altrament normalitzem i actualitzem amb les noves creences
+        if new_belief.totalCount() == 0:
+            self.initializeBeliefs(enemy)
+        else:
+            new_belief.normalize()
+            self.beliefs[enemy] = new_belief
 
     def initializeBeliefs(self, enemy):
         """
