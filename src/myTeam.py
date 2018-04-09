@@ -39,15 +39,15 @@ def createTeam(
   behavior is what you want for the nightly contest.
   """
 
-  # The following line is an example only; feel free to change it.
   return [eval(first)(firstIndex), eval(second)(secondIndex)]
 
 ##########
 # Agents #
 ##########
 
-constDepth = 2
-move_range = [-1, 0, 1]
+DEPTH = 2
+MOVE_RANGE = [-1, 0, 1]
+
 
 class ParentAgent(CaptureAgent):
     def registerInitialState(self, gameState):
@@ -119,7 +119,7 @@ class ParentAgent(CaptureAgent):
               enemy))
 
         # TODO imp effi
-        action = self.maxFunction(newState, depth=constDepth)[1]
+        action = self.maxFunction(newState, depth=DEPTH)[1]
 
         return action
 
@@ -219,6 +219,13 @@ class ParentAgent(CaptureAgent):
 
         self.beliefs[enemy].normalize()
 
+    def evaluateGameState(self, gameState):
+        """
+        :param gameState:
+        :return:
+        """
+        util.raiseNotDefined()
+
     def maxFunction(self, gameState, depth):
         """
         Funcio maximitzadora per obtenir el moviment (accio) més "util"
@@ -230,7 +237,7 @@ class ParentAgent(CaptureAgent):
 
         # Si final
         if depth == 0 or gameState.isOver():
-            return util.raiseNotDefined(), Directions.STOP
+            return self.evaluateGameState(gameState), Directions.STOP
 
         # Moviments succesors
         actions = gameState.getLegalActions(self.index)
@@ -318,17 +325,59 @@ class OffensiveAgent(ParentAgent):
         ParentAgent.registerInitialState(self, gameState)
 
     def chooseAction(self, gameState):
-        actions = gameState.getLegalActions(self.index)
-        return random.choice(actions)
+        return ParentAgent.chooseAction(self, gameState)
 
-class DefensiveAgent(CaptureAgent):
+    def evaluateGameState(self, gameState):
+        """
+        Mètode heurístic que evalua l'estat del tauler basant-se en el punt de
+        vista de un agent ofensiu. Valorarà:
+            - La posició dels fantasmes enemics
+            - La posició dels powerups enemics
+        :return:
+        """
+        # Obtenir distancia al mig del tauler
+        myPos = gameState.getAgentPosition(self.index)
+
+        # Obtenir distancies cap als dos enemics
+        enemyDists = []
+        for enemy in self.enemies:
+            if not gameState.getAgentState(enemy).isPacman:
+                enemyPos = gameState.getAgentPosition(enemy)
+                if enemyPos:
+                    enemyDists.append(self.distancer.getDistance(myPos, enemyPos))
+
+        # Obtenir distancia cap al powerup
+        if self.red:
+            powerups = gameState.getBlueCapsules()
+        else:
+            powerups = gameState.getBlueCapsules()
+        powerupsDistances = tuple(
+            self.distancer.getDistance(myPos, pwup) for pwup in powerups
+        )
+
+        enemiesDistanceScore = reduce(lambda x, y: x+y * -100, enemyDists, 0)
+        powerupsDistancesScore = (min(powerupsDistances) if powerupsDistances else 0) * 30
+
+        # distanceToMiddle = min(
+        #     [
+        #         self.distancer.getDistance(
+        #             myPos, (self.midWidth, i)
+        #         )
+        #         for i in range(gameState.data.layout.height)
+        #         if (self.midWidth, i) in self.legalPositions
+        #     ]
+        # )
+        return 2 * self.getScore(gameState) + enemiesDistanceScore + powerupsDistancesScore
+
+
+class DefensiveAgent(ParentAgent):
 
     def registerInitialState(self, gameState):
-        CaptureAgent.registerInitialState(self, gameState)
-
+        ParentAgent.registerInitialState(self, gameState)
 
     def chooseAction(self, gameState):
-        actions = gameState.getLegalActions(self.index)
+        return ParentAgent.chooseAction(self, gameState)
 
-        return random.choice(actions)
+    def evaluateGameState(self, gameState):
+        return 1
 
