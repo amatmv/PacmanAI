@@ -49,8 +49,8 @@ DEPTH = 2
 MOVE_RANGE = [-1, 0, 1]
 
 
-
 class ParentAgent(CaptureAgent):
+
     def registerInitialState(self, gameState):
         CaptureAgent.registerInitialState(self, gameState)
         # Posicio inicial de l'agent
@@ -67,6 +67,7 @@ class ParentAgent(CaptureAgent):
         self.team = self.getTeam(gameState)
 
         # Flag per saber si esta atacant.
+        # TODO aixo hauria d'anar nomes al defensiu
         self.offensing = False
 
         # Indexs enemics.
@@ -88,7 +89,8 @@ class ParentAgent(CaptureAgent):
         @returns str action with selected move direction ex. North
         """
 
-        # Distances to listened sounds (list of 4 integers with distances to sounds)
+        # Distàncies als sons escoltats. Tenim una llista de 4 enters
+        # que representen les distàncies
         noisyDistances = gameState.getAgentDistances()
 
         # Makes a copy of game state
@@ -126,7 +128,7 @@ class ParentAgent(CaptureAgent):
         Comprova totes les possibles posicions succesores i que sigui legal el moviment i
         es reaparteix de manera uniforme la distribucio de probabilitats
         """
-        new_belief = util.Counter()
+        newBelief = util.Counter()
         # legalPositions is a list of tuples (x,y)
         for oldPos in self.legalPositions:
             # Get the new probability distribution.
@@ -146,11 +148,11 @@ class ParentAgent(CaptureAgent):
             # Get the new belief distibution.
             for newPos, prob in newPosDist.items():
                 # Update the probabilities for each of the positions.
-                new_belief[newPos] += prob * self.beliefs[enemy][oldPos]
+                newBelief[newPos] += prob * self.beliefs[enemy][oldPos]
 
         # Normalize and update the belief.
-        new_belief.normalize()
-        self.beliefs[enemy] = new_belief
+        newBelief.normalize()
+        self.beliefs[enemy] = newBelief
 
     def observe(self, enemy, observation, gameState):
         """
@@ -160,19 +162,19 @@ class ParentAgent(CaptureAgent):
         @param: observation int list of 4 elements with noisy distance
                 between current agent and all agents.
         """
-        # Get the noisy observation for the current enemy.
+        # Obtenim la distància al enemic
         noisyDistance = observation[enemy]
 
-        # Get the position of the calling agent.
-        current_pos = gameState.getAgentPosition(self.index)
+        # La nostra posició
+        myPos = gameState.getAgentPosition(self.index)
 
-        # Create new dictionary to hold the new beliefs for the current enemy.
-        new_belief = util.Counter()
+        # Diccionari per a guardar les suposicions per al enemic actual
+        newBelief = util.Counter()
 
         # Actualitzem les creences de les posicions legalse del tauler.
         for p in self.legalPositions:
             # Distancia real entre l'agent actual i la posicio iteració
-            trueDistance = util.manhattanDistance(current_pos, p)
+            trueDistance = util.manhattanDistance(myPos, p)
 
             # Probabilitat tenint en compte la distancia real i la probable
             # P(e_t|x_t).
@@ -190,47 +192,47 @@ class ParentAgent(CaptureAgent):
             # visio de l'objectiu i no estaria al vector de distancies de sons
             # si no a les distancies reals
             if trueDistance <= 5:
-                new_belief[p] = 0.
+                newBelief[p] = 0.
             elif pac != gameState.getAgentState(enemy).isPacman:
-                new_belief[p] = 0.
+                newBelief[p] = 0.
             else:
                 # P(x_t|e_1:t) = P(x_t|e_1:t) * P(e_t:x_t).
-                new_belief[p] = self.beliefs[enemy][p] * emissionModel
+                newBelief[p] = self.beliefs[enemy][p] * emissionModel
 
         # Si no tenim creences inicialitzem de manera uniforme per cada posicio
         # altrament normalitzem i actualitzem amb les noves creences
-        if new_belief.totalCount() == 0:
+        if newBelief.totalCount() == 0:
             self.initializeBeliefs(enemy)
         else:
-            new_belief.normalize()
-            self.beliefs[enemy] = new_belief
+            newBelief.normalize()
+            self.beliefs[enemy] = newBelief
 
     def initializeBeliefs(self, enemy):
         """
-        Inicialitza les creencies de manera uniforme per totes les possibles posicions
+        Inicialitza les creències de manera uniforme per totes les possibles posicions
         i en normalitza les probabilitats (que la suma total sigui 1)
         """
         self.beliefs[enemy] = util.Counter()
         for pos in self.legalPositions:
-            # This value of 1, could be anything since we will normalize it.
+            # Assignem un valor de probabilitat per defecte
             self.beliefs[enemy][pos] = 1.0
 
         self.beliefs[enemy].normalize()
 
     def evaluateGameState(self, gameState):
         """
-        :param gameState:
-        :return:
+        Evalua l'estat del joc
         """
         util.raiseNotDefined()
 
     def maxFunction(self, gameState, depth):
         """
-        Funcio maximitzadora per obtenir el moviment (accio) més "util"
+        Funcio maximitzadora per obtenir el moviment (acció) més "útil"
         per l'agent de l'equip.
+
         @params gameState
         @params depth
-        @returns tuble (score, action)
+        @returns tuple (score, action)
         """
 
         # Si final
@@ -246,10 +248,7 @@ class ParentAgent(CaptureAgent):
         # Per cada moviment possible obtenim els succesors
         succesorStates = []
         for action in actions:
-            try:
-                succesorStates.append(gameState.generateSuccessor(self.index, action))
-            except:
-                pass
+            succesorStates.append(gameState.generateSuccessor(self.index, action))
 
         # Obtenim els resultats dels possibles moviments enemics
         scores = []
@@ -257,8 +256,9 @@ class ParentAgent(CaptureAgent):
             scores.append(self.expectiFunction(successorState, self.enemies[0], depth)[0])
 
         bestScore = max(scores)
-        bestIndices = [index for index in range(len(scores)) if
-                         scores[index] == bestScore]
+        bestIndices = [
+            index for index in range(len(scores)) if scores[index] == bestScore
+        ]
         chosenIndex = random.choice(bestIndices)
 
         return bestScore, actions[chosenIndex]
@@ -321,8 +321,14 @@ class OffensiveAgent(ParentAgent):
 
     def registerInitialState(self, gameState):
         ParentAgent.registerInitialState(self, gameState)
+        self.retreating = False
 
     def chooseAction(self, gameState):
+        enoughFood = 7
+
+        # Si tenim prou menjar és moment de retirar-nos a un lloc segur
+        if gameState.getAgentState(self.index).numCarrying > enoughFood:
+            self.retreating = True
         return ParentAgent.chooseAction(self, gameState)
 
     def evaluateGameState(self, gameState):
@@ -344,28 +350,50 @@ class OffensiveAgent(ParentAgent):
                 if enemyPos:
                     enemyDists.append(self.distancer.getDistance(myPos, enemyPos))
 
+        # Obtenir la puntuació segons si hi ha enemics a prop
+        enemiesDistanceScore = 0
+        if enemyDists:
+            enemiesDistanceScore = min(enemyDists) * -100 if min(enemyDists) < 6 else 0
+
+        # Si tenim prou menjar hem de fugir a deixar-lo a lloc segur
+        if self.retreating:
+            distanceToMiddle = min(
+                [
+                    self.distancer.getDistance(
+                        myPos, (self.midWidth, i)
+                    )
+                    for i in range(gameState.data.layout.height)
+                    if (self.midWidth, i) in self.legalPositions
+                ]
+            )
+            return -1000 * distanceToMiddle + enemiesDistanceScore
+
         # Obtenir distancia cap al powerup
         if self.red:
             powerups = gameState.getBlueCapsules()
         else:
-            powerups = gameState.getBlueCapsules()
+            powerups = gameState.getRedCapsules()
+
         powerupsDistances = tuple(
             self.distancer.getDistance(myPos, pwup) for pwup in powerups
         )
+        powerupsDistancesScore = (
+             min(powerupsDistances) if powerupsDistances else 0
+        ) * -1000
 
-        enemiesDistanceScore = reduce(lambda x, y: x+y * -100, enemyDists, 0)
-        powerupsDistancesScore = (min(powerupsDistances) if powerupsDistances else 0) * 30
-
-        # distanceToMiddle = min(
-        #     [
-        #         self.distancer.getDistance(
-        #             myPos, (self.midWidth, i)
-        #         )
-        #         for i in range(gameState.data.layout.height)
-        #         if (self.midWidth, i) in self.legalPositions
-        #     ]
-        # )
-        return 2 * self.getScore(gameState) + enemiesDistanceScore + powerupsDistancesScore
+        # Menjar proper per anar a buscar-lo
+        targetFood = self.getFood(gameState).asList()
+        nearerFood = -min([
+            self.distancer.getDistance(myPos, food)
+            for food in targetFood
+        ])
+        nearerFood += 1
+        return (
+            2 * self.getScore(gameState) +
+            enemiesDistanceScore +
+            powerupsDistancesScore +
+            3 * nearerFood
+        )
 
 
 class DefensiveAgent(ParentAgent):
