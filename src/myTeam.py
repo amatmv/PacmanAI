@@ -53,25 +53,25 @@ class ParentAgent(CaptureAgent):
     def registerInitialState(self, gameState):
         CaptureAgent.registerInitialState(self, gameState)
 
-        # Get the starting position of our agent.
+        # Posicio inicial de l'agent
         self.start = gameState.getInitialAgentPosition(self.index)
 
-        # Get the midpoint of the board.
+        # Punt mig del tauler
         self.midWidth = gameState.data.layout.width / 2
 
-        # Get the legal positions that agents could be in.
+        # Totes les posicions legals del tauler on un agent pot estar
         self.legalPositions = [p for p in gameState.getWalls().asList(False) if p[1] > 1]
 
-        # So we can use maze distance.
+        # Llista de distancies
         self.distancer.getMazeDistances()
 
-        # Get our team agent indexes.
+        # Indexs dels nostres agents.
         self.team = self.getTeam(gameState)
 
-        # Flag for offense.
+        # Flag per saber si esta atacant.
         self.offensing = False
 
-        # Get our enemy indexes.
+        # Indexs enemics.
         self.enemies = self.getOpponents(gameState)
 
         # Initialize the belief to be 1 at the initial position for each of the
@@ -106,7 +106,7 @@ class ParentAgent(CaptureAgent):
                 self.beliefs[enemy] = new_belief
             else:
                 # If not visual contact observe and move
-                self.elapseTime(enemy, gameState)
+                self.genericMove(enemy, gameState)
                 self.observe(enemy, noisyDistances, gameState)
 
         # Using the most probable position update the game state.
@@ -123,7 +123,7 @@ class ParentAgent(CaptureAgent):
 
         return action
 
-    def elapseTime(self, enemy, gameState):
+    def genericMove(self, enemy, gameState):
         """
         Comprova totes les possibles posicions succesores i que sigui legal el moviment i
         es reaparteix de manera uniforme la distribucio de probabilitats i en retorna una
@@ -180,7 +180,7 @@ class ParentAgent(CaptureAgent):
             # P(e_t|x_t).
             emissionModel = gameState.getDistanceProb(trueDistance, noisyDistance)
 
-            # Pode, descartar que una posicio sigui real
+            # Podem descartar que una posicio sigui real
             # comrovant el tipus d'agent que es pacman o fasntasma i sapiguent
             # a quin camp es troba.
             if self.red:
@@ -230,7 +230,7 @@ class ParentAgent(CaptureAgent):
 
         # Si final
         if depth == 0 or gameState.isOver():
-            return self.evaluationFunction(gameState), Directions.STOP
+            return util.raiseNotDefined(), Directions.STOP
 
         # Moviments succesors
         actions = gameState.getLegalActions(self.index)
@@ -241,7 +241,10 @@ class ParentAgent(CaptureAgent):
         # Per cada moviment possible obtenim els succesors
         succesorStates = []
         for action in actions:
-            succesorStates.append(gameState.generateSuccessor(self.index, action))
+            try:
+                succesorStates.append(gameState.generateSuccessor(self.index, action))
+            except:
+                pass
 
         # Obtenim els resultats dels possibles moviments enemics
         scores = []
@@ -254,6 +257,59 @@ class ParentAgent(CaptureAgent):
         chosenIndex = random.choice(bestIndices)
 
         return bestScore, actions[chosenIndex]
+
+    def expectiFunction(self, gameState, enemy, depth):
+        """
+        This is the expectimax function from HW2. This will be called for
+        each of the enemy agents. Once it goes to the next level we will use
+        the max function again since we will be back on our team.
+        """
+
+        # Si final
+        if depth == 0 or gameState.isOver():
+            return util.raiseNotDefined(), Directions.STOP
+
+        # Possibles moviments succesors dels enemics
+        actions = gameState.getLegalActions(enemy)
+        succesorStates = []
+        for action in actions:
+            try:
+                succesorStates.append(gameState.generateSuccessor(enemy, action))
+            except Exception, e:
+                print e
+                pass
+
+        # If there is another ghost, then call the expecti function for the
+        # next ghost, otherwise call the max function for pacman.
+        if enemy < max(self.enemies):
+            scores = [self.expectiFunction(successorGameState, enemy + 2, depth)[0]
+                        for successorGameState in succesorStates]
+        else:
+            scores = [self.maxFunction(successorGameState, depth - 1)[0]
+                        for successorGameState in succesorStates]
+
+        # Millor puntuacio
+        bestScore = sum(scores) / len(scores)
+
+        return bestScore, Directions.STOP
+
+    def enemyDistances(self, gameState):
+        """
+        Funcio per retornar la distacia als agenents enemics.
+        En el cas que no coneguem la posicio exacte de l'enemic agafem la crence
+        amb clau mes alta (més aproximada)
+        @returns list amb les distacies entre la posicio de l'agent actual
+        i les possibles "posicions" enemigas
+        """
+        dists = []
+        for enemy in self.enemies:
+            myPos = gameState.getAgentPosition(self.index)
+            enemyPos = gameState.getAgentPosition(enemy)
+            # Si no coneixem la pos enemiga
+            if not enemyPos:
+                enemyPos = self.beliefs[enemy].argMax()
+            dists.append((enemy, self.distancer.getDistance(myPos, enemyPos)))
+        return dists
 
 
 class PolsAgent(ParentAgent):
