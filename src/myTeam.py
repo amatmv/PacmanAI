@@ -23,7 +23,7 @@ import game
 #################
 
 def createTeam(
-        firstIndex, secondIndex, isRed, first = 'PolsAgent', second = 'AmatsAgent'):
+        firstIndex, secondIndex, isRed, first = 'DefensiveAgent', second = 'OffensiveAgent'):
   """
   This function should return a list of two agents that will form the
   team, initialized using firstIndex and secondIndex as their agent
@@ -39,15 +39,15 @@ def createTeam(
   behavior is what you want for the nightly contest.
   """
 
-  # The following line is an example only; feel free to change it.
   return [eval(first)(firstIndex), eval(second)(secondIndex)]
 
 ##########
 # Agents #
 ##########
 
-constDepth = 2
-move_range = [-1, 0, 1]
+DEPTH = 2
+MOVE_RANGE = [-1, 0, 1]
+
 
 
 class ParentAgent(CaptureAgent):
@@ -117,7 +117,7 @@ class ParentAgent(CaptureAgent):
               enemy))
 
         # TODO imp effi
-        action = self.maxFunction(newState, depth=constDepth)[1]
+        action = self.maxFunction(newState, depth=DEPTH)[1]
 
         return action
 
@@ -217,6 +217,13 @@ class ParentAgent(CaptureAgent):
 
         self.beliefs[enemy].normalize()
 
+    def evaluateGameState(self, gameState):
+        """
+        :param gameState:
+        :return:
+        """
+        util.raiseNotDefined()
+
     def maxFunction(self, gameState, depth):
         """
         Funcio maximitzadora per obtenir el moviment (accio) més "util"
@@ -228,7 +235,7 @@ class ParentAgent(CaptureAgent):
 
         # Si final
         if depth == 0 or gameState.isOver():
-            return util.raiseNotDefined(), Directions.STOP
+            return self.evaluateGameState(gameState), Directions.STOP
 
         # Moviments succesors
         actions = gameState.getLegalActions(self.index)
@@ -310,93 +317,65 @@ class ParentAgent(CaptureAgent):
         return dists
 
 
-class PolsAgent(ParentAgent):
-  """
-  A Dummy agent to serve as an example of the necessary agent structure.
-  You should look at baselineTeam.py for more details about how to
-  create an agent as this is the bare minimum.
-  """
+class OffensiveAgent(ParentAgent):
 
-  def registerInitialState(self, gameState):
-    """
-    This method handles the initial setup of the
-    agent to populate useful fields (such as what team
-    we're on).
+    def registerInitialState(self, gameState):
+        ParentAgent.registerInitialState(self, gameState)
 
-    A distanceCalculator instance caches the maze distances
-    between each pair of positions, so your agents can use:
-    self.distancer.getDistance(p1, p2)
+    def chooseAction(self, gameState):
+        return ParentAgent.chooseAction(self, gameState)
 
-    IMPORTANT: This method may run for at most 15 seconds.
-    """
+    def evaluateGameState(self, gameState):
+        """
+        Mètode heurístic que evalua l'estat del tauler basant-se en el punt de
+        vista de un agent ofensiu. Valorarà:
+            - La posició dels fantasmes enemics
+            - La posició dels powerups enemics
+        :return:
+        """
+        # Obtenir distancia al mig del tauler
+        myPos = gameState.getAgentPosition(self.index)
 
-    '''
-    Make sure you do not delete the following line. If you would like to
-    use Manhattan distances instead of maze distances in order to save
-    on initialization time, please take a look at
-    CaptureAgent.registerInitialState in captureAgents.py.
-    '''
-    CaptureAgent.registerInitialState(self, gameState)
+        # Obtenir distancies cap als dos enemics
+        enemyDists = []
+        for enemy in self.enemies:
+            if not gameState.getAgentState(enemy).isPacman:
+                enemyPos = gameState.getAgentPosition(enemy)
+                if enemyPos:
+                    enemyDists.append(self.distancer.getDistance(myPos, enemyPos))
 
-    '''
-    Your initialization code goes here, if you need any.
-    '''
+        # Obtenir distancia cap al powerup
+        if self.red:
+            powerups = gameState.getBlueCapsules()
+        else:
+            powerups = gameState.getBlueCapsules()
+        powerupsDistances = tuple(
+            self.distancer.getDistance(myPos, pwup) for pwup in powerups
+        )
 
+        enemiesDistanceScore = reduce(lambda x, y: x+y * -100, enemyDists, 0)
+        powerupsDistancesScore = (min(powerupsDistances) if powerupsDistances else 0) * 30
 
-  def chooseAction(self, gameState):
-    """
-    Picks among actions randomly.
-    """
-    actions = gameState.getLegalActions(self.index)
-
-    '''
-    You should change this in your own agent.
-    '''
-
-    return random.choice(actions)
-
-class AmatsAgent(CaptureAgent):
-  """
-  A Dummy agent to serve as an example of the necessary agent structure.
-  You should look at baselineTeam.py for more details about how to
-  create an agent as this is the bare minimum.
-  """
-
-  def registerInitialState(self, gameState):
-    """
-    This method handles the initial setup of the
-    agent to populate useful fields (such as what team
-    we're on).
-
-    A distanceCalculator instance caches the maze distances
-    between each pair of positions, so your agents can use:
-    self.distancer.getDistance(p1, p2)
-
-    IMPORTANT: This method may run for at most 15 seconds.
-    """
-
-    '''
-    Make sure you do not delete the following line. If you would like to
-    use Manhattan distances instead of maze distances in order to save
-    on initialization time, please take a look at
-    CaptureAgent.registerInitialState in captureAgents.py.
-    '''
-    CaptureAgent.registerInitialState(self, gameState)
-
-    '''
-    Your initialization code goes here, if you need any.
-    '''
+        # distanceToMiddle = min(
+        #     [
+        #         self.distancer.getDistance(
+        #             myPos, (self.midWidth, i)
+        #         )
+        #         for i in range(gameState.data.layout.height)
+        #         if (self.midWidth, i) in self.legalPositions
+        #     ]
+        # )
+        return 2 * self.getScore(gameState) + enemiesDistanceScore + powerupsDistancesScore
 
 
-  def chooseAction(self, gameState):
-    """
-    Picks among actions randomly.
-    """
-    actions = gameState.getLegalActions(self.index)
+class DefensiveAgent(ParentAgent):
 
-    '''
-    You should change this in your own agent.
-    '''
+    def registerInitialState(self, gameState):
+        ParentAgent.registerInitialState(self, gameState)
 
-    return random.choice(actions)
+    def chooseAction(self, gameState):
+        return ParentAgent.chooseAction(self, gameState)
+
+    def evaluateGameState(self, gameState):
+        return 1
 
