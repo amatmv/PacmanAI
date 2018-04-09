@@ -83,3 +83,12 @@ Quan el nostre equip ja te una puntuació mitjanament alta generalment el menjar
 
 
 ## Comporament Defensiu
+![pacman of](img/pac_Def.png)
+
+El comportament defensiu es basa en un equilibri entre defense i atac, es a dir,
+la seva funció principal és defensar el territori dels enemics que entrin però
+tambe podra atacar si es nesesari (quan no hi hagi gaire risc).
+
+Per determinar si defensar o atacar ens basem en si hi ha algun enemic en forma de pacman, si es el cas es que l'enemic esta etacant per tant l'agent entrara en mode defensiu.
+
+En cas d'estar en mode defensiu la funció d¡evaluacio buscara el moviment que minimitzi la distancia entre l'agent actual i l'enemic més proper, altrament en cas d'estar atacant, utilitzara la funcio de l'agent atacant i es mantindrà atacant fins que torni a tocar defensar.
