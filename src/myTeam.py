@@ -265,9 +265,7 @@ class ParentAgent(CaptureAgent):
 
     def expectiFunction(self, gameState, enemy, depth):
         """
-        This is the expectimax function from HW2. This will be called for
-        each of the enemy agents. Once it goes to the next level we will use
-        the max function again since we will be back on our team.
+        Funció expectiMax. Serà cridada per a cada un dels agents enemics.
         """
 
         # Si final
@@ -278,20 +276,21 @@ class ParentAgent(CaptureAgent):
         actions = gameState.getLegalActions(enemy)
         succesorStates = []
         for action in actions:
-            try:
-                succesorStates.append(gameState.generateSuccessor(enemy, action))
-            except Exception, e:
-                print e
-                pass
+            succesorStates.append(gameState.generateSuccessor(enemy, action))
 
-        # If there is another ghost, then call the expecti function for the
-        # next ghost, otherwise call the max function for pacman.
+        # Si hi ha algun fantasma, cridem la expectiFunction per a l'altre
+        # fantasma, sino anem al seguent nivell de l'expectimax cridant
+        # la maxFunction
         if enemy < max(self.enemies):
-            scores = [self.expectiFunction(successorGameState, enemy + 2, depth)[0]
-                        for successorGameState in succesorStates]
+            scores = [
+                self.expectiFunction(successorGameState, enemy + 2, depth)[0]
+                for successorGameState in succesorStates
+            ]
         else:
-            scores = [self.maxFunction(successorGameState, depth - 1)[0]
-                        for successorGameState in succesorStates]
+            scores = [
+                self.maxFunction(successorGameState, depth - 1)[0]
+                for successorGameState in succesorStates
+            ]
 
         # Millor puntuacio
         bestScore = sum(scores) / len(scores)
@@ -353,7 +352,7 @@ class OffensiveAgent(ParentAgent):
         # Obtenir la puntuació segons si hi ha enemics a prop
         enemiesDistanceScore = 0
         if enemyDists:
-            enemiesDistanceScore = min(enemyDists) * -100 if min(enemyDists) < 6 else 0
+            enemiesDistanceScore = min(enemyDists) if min(enemyDists) < 6 else 0
 
         # Si tenim prou menjar hem de fugir a deixar-lo a lloc segur
         if self.retreating:
@@ -379,20 +378,25 @@ class OffensiveAgent(ParentAgent):
         )
         powerupsDistancesScore = (
              min(powerupsDistances) if powerupsDistances else 0
-        ) * -1000
+        )
 
         # Menjar proper per anar a buscar-lo
         targetFood = self.getFood(gameState).asList()
-        nearerFood = -min([
+        nearerFood = min([
             self.distancer.getDistance(myPos, food)
             for food in targetFood
         ])
-        nearerFood += 1
+
+        scaredTimes = [
+            gameState.getAgentState(enemy).scaredTimer
+            for enemy in self.enemies
+        ]
+        if scaredTimes <= 6 and enemiesDistanceScore < 4:
+            enemiesDistanceScore *= 1
         return (
-            2 * self.getScore(gameState) +
-            enemiesDistanceScore +
-            powerupsDistancesScore +
-            3 * nearerFood
+            2 * self.getScore(gameState) - 100 * len(targetFood) -
+            3 * nearerFood - 10000 * len(powerups) -
+            5 * powerupsDistancesScore + 100 * enemiesDistanceScore
         )
 
 
