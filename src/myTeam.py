@@ -106,7 +106,7 @@ class ParentAgent(CaptureAgent):
                 self.beliefs[enemy] = new_belief
             else:
                 # If not visual contact observe and move
-                self.genericMove(enemy, gameState)
+                self.actualitzarCreences(enemy, gameState)
                 self.observe(enemy, noisyDistances, gameState)
 
         # Using the most probable position update the game state.
@@ -123,10 +123,10 @@ class ParentAgent(CaptureAgent):
 
         return action
 
-    def genericMove(self, enemy, gameState):
+    def actualitzarCreences(self, enemy, gameState):
         """
         Comprova totes les possibles posicions succesores i que sigui legal el moviment i
-        es reaparteix de manera uniforme la distribucio de probabilitats i en retorna una
+        es reaparteix de manera uniforme la distribucio de probabilitats
         """
         new_belief = util.Counter()
         # legalPositions is a list of tuples (x,y)
