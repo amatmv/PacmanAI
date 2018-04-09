@@ -49,16 +49,14 @@ DEPTH = 2
 MOVE_RANGE = [-1, 0, 1]
 
 
+
 class ParentAgent(CaptureAgent):
     def registerInitialState(self, gameState):
         CaptureAgent.registerInitialState(self, gameState)
-
         # Posicio inicial de l'agent
         self.start = gameState.getInitialAgentPosition(self.index)
-
         # Punt mig del tauler
         self.midWidth = gameState.data.layout.width / 2
-
         # Totes les posicions legals del tauler on un agent pot estar
         self.legalPositions = [p for p in gameState.getWalls().asList(False) if p[1] > 1]
 
