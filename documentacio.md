@@ -52,8 +52,7 @@ Degut a que alhora d'obtenir les distancies dels sons ens retornava masses
 posicions a evaluar i que algunes d'elles eren impossibles hem decidit acotarles
 amb les seguents regles-
 
-- Si una lectura es troba en una posició en la que hauria d'estar l'enemic en forma de pacman la descartem (**prob=0.**) si no ho es tot aixó verificant l'estat a través de
-la funció:
+- Si una lectura es troba en una posició en la que hauria d'estar l'enemic en forma de pacman la descartem (**prob=0.**) si no ho es, tot aixó verificant l'estat a través de la funció:
 
   ```python
      gameState.getAgentState().isPacman
@@ -65,11 +64,22 @@ en aquest cas ens hauria d'apareixer dins les lectures reals, si no ho fa la pod
 # Visió desglosada dels diferents comportaments dels agents
 
 ## Comporament general
-La funció encarregada del moviment generic és la seguent:
+
 
 
 ## Comportament Ofensiu
 ![pacman of](img/pac_of.png)
+
+El comportament ofensiu es basa en entrar en el territori recollir tot el menjar possible i no ser "caçat", per això la nostra funció d'evaluació es basa en trobar un equilibri entre risc i recompensa on la nostre prioritat és no ser "caçats".
+
+Un altre factor a tenir en compte era que en ser caçat dins el territori enemic,
+equivalia a perdre els punts recolectats per tant vam decidir que a cert punt
+l'agent retornes al seu territori per tal de conservar aquests punts a menys que
+tinguesim el **power-up** actiu.
+
+La reflexio principal d'aquest agent i de l'agent defensiu en mode atac es basa
+en prioritzar l'obtenció del **power-up** ja que facilita l'obtenció de menjar.
+Quan el nostre equip ja te una puntuació mitjanament alta generalment el menjar que queda esta en posicions més complicades d'accedir, aquest es el moment en que els dos agents poden pasar a l'atac ja que sera més facil que un pugui tornar amb menjar.
 
 
 ## Comporament Defensiu
