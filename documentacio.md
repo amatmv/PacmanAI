@@ -7,8 +7,9 @@ A l'hora de seleccionar quin moviment ha de realitzar un agent determinat ho far
 ```python
 def updateBeliefs(self, enemy):
     """
-    Comprova totes les possibles posicions succesores i que sigui legal el moviment i
-    es reparteix de manera uniforme la distribucio de probabilitats
+    Comprova totes les possibles posicions succesores i que sigui legal
+    el moviment ies reparteix de manera uniforme la distribucio de
+    probabilitats
     """
     newBelief = util.Counter()
     # legalPositions es una llista de tuples (x,y)
@@ -82,7 +83,6 @@ def observe(self, enemy, observation, gameState):
         trueDistance = util.manhattanDistance(myPos, pos)
 
         # Probabilitat tenint en compte la distancia real i la probable
-        # P(e_t|x_t).
         emissionModel = gameState.getDistanceProb(trueDistance, noisyDistance)
 
         # Podem descartar que una posicio sigui real
@@ -101,7 +101,6 @@ def observe(self, enemy, observation, gameState):
         elif pac != gameState.getAgentState(enemy).isPacman:
             newBelief[pos] = 0.
         else:
-            # P(x_t|e_1:t) = P(x_t|e_1:t) * P(e_t:x_t).
             newBelief[pos] = self.beliefs[enemy][pos] * emissionModel
 
     # Si no tenim creences inicialitzem de manera uniforme per cada posicio
