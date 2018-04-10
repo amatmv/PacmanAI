@@ -427,7 +427,7 @@ class DefensiveAgent(ParentAgent):
 
         # Si no hi ha enemics atacant o tenim el power-up actiu pasem l'agent
         # a l'atac
-        self.offensing = not invaders or min(powerTimes) > 8
+        self.offensing = not invaders and min(powerTimes) > 8
 
         return ParentAgent.chooseAction(self, gameState)
 
