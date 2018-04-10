@@ -456,8 +456,16 @@ class DefensiveAgent(ParentAgent):
         minFoodDistance = False
         for food in self.getFood(gameState).asList():
             dist = self.distancer.getDistance(currentPos, food)
-            minFoodDistance = dist if not dist or dist < minFoodDistance else minFoodDistance
+            minFoodDistance = dist if not minFoodDistance or dist < minFoodDistance else minFoodDistance
         minFoodDistance = 0 if not minFoodDistance else minFoodDistance
+
+        # Calcul de la distancia minima al power-up
+        powUps = self.getCapsulesYouAreDefending(gameState)
+        minPowerDistance = False
+        for power in powUps:
+            dist = self.getMazeDistance(currentPos, power)
+            minPowerDistance = dist if not minPowerDistance or dist < minPowerDistance else minPowerDistance
+        minPowerDistance = 0 if not minPowerDistance else minPowerDistance
 
 
         return 1
