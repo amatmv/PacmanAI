@@ -66,9 +66,20 @@ class ParentAgent(CaptureAgent):
         # Indexs enemics.
         self.enemies = self.getOpponents(gameState)
 
-        # Initialize the belief to be 1 at the initial position for each of the
-        # opposition agents. The beliefs will be a dictionary of dictionaries.
-        # The inner dictionaries will hold the beliefs for each agent.
+        # Inicialitza les creeències a 1 per a cada una de les posicions dels
+        # agents enemics. Estructura de dades:
+        # beliefs = {
+        #     enemy_1: {
+        #         guessed_pos_1: int(0-1),
+        #         guessed_pos_2: int(0-1),
+        #         ...
+        #     },
+        #     enemy_2: {
+        #         guessed_pos_1: int(0-1),
+        #         guessed_pos_2: int(0-1),
+        #         ...
+        #     }
+        # }
         self.beliefs = {}
         for enemy in self.enemies:
           self.beliefs[enemy] = util.Counter()
@@ -236,13 +247,15 @@ class ParentAgent(CaptureAgent):
 
         # Per cada moviment possible obtenim els succesors
         succesorStates = []
+        succesorStatesAppendFunc = succesorStates.append
         for action in actions:
-            succesorStates.append(gameState.generateSuccessor(self.index, action))
+            succesorStatesAppendFunc(gameState.generateSuccessor(self.index, action))
 
         # Obtenim els resultats dels possibles moviments enemics
         scores = []
+        scoresAppendFunc = scores.append
         for successorState in succesorStates:
-            scores.append(self.expectiFunction(successorState, self.enemies[0], depth)[0])
+            scoresAppendFunc(self.expectiFunction(successorState, self.enemies[0], depth)[0])
 
         bestScore = max(scores)
         bestIndices = [
@@ -264,8 +277,9 @@ class ParentAgent(CaptureAgent):
         # Possibles moviments succesors dels enemics
         actions = gameState.getLegalActions(enemy)
         succesorStates = []
+        successorStatesAppendFunc = succesorStates.append
         for action in actions:
-            succesorStates.append(gameState.generateSuccessor(enemy, action))
+            successorStatesAppendFunc(gameState.generateSuccessor(enemy, action))
 
         # Si hi ha algun fantasma, cridem la expectiFunction per a l'altre
         # fantasma, sino anem al seguent nivell de l'expectimax cridant
@@ -316,10 +330,7 @@ class OffensiveAgent(ParentAgent):
         enoughFood = 7
 
         # Si tenim prou menjar és moment de retirar-nos a un lloc segur
-        if gameState.getAgentState(self.index).numCarrying > enoughFood:
-            self.retreating = True
-        else:
-            self.retreating = False
+        self.retreating = gameState.getAgentState(self.index).numCarrying > enoughFood
         return ParentAgent.chooseAction(self, gameState)
 
     def evaluateGameState(self, gameState):
@@ -337,13 +348,14 @@ class OffensiveAgent(ParentAgent):
         # Obtenir distancies cap als dos enemics
         enemyDists = []
         nearestGhostDistance = sys.maxsize
+        appendFunc = enemyDists.append
         for enemy in self.enemies:
             # if not gameState.getAgentState(enemy).isPacman:
             enemyPos = gameState.getAgentPosition(enemy)
             if enemyPos:
                 # Si trobem algun enemic, volem trobar la distancia
                 distance = self.distancer.getDistance(myPos, enemyPos)
-                enemyDists.append(distance)
+                appendFunc(distance)
                 if distance < nearestGhostDistance:
                     # En el cas que sigui el fantasma mes proper,
                     # si està espantat, interessa atacar-lo
