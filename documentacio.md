@@ -1,14 +1,11 @@
 # Visió general (estratègia)
-Després de ralitzar diverses proves i disenys, hem obtat per desenvolupar dos agents per separat amb comportaments diferents (**ofensiu** i **defensiu**) però
-amb una part generica la qual podran fer servir qualsevol dels dos a través d'herencia.
+Després de ralitzar diverses proves i disenys, hem optat per desenvolupar dos agents per separat amb comportaments diferents (**ofensiu** i **defensiu**) però
+amb una part genèrica la qual podràn fer servir qualsevol dels dos a través d'herencia.
 
-Alhora de seleccionar quin moviment ha de realitzar un agent determinat ho farà
-a través d'un algoritme **expectimax** assumint la posició més aproximada de
-l'enemic en base a les creences que te les quals seran aproximacions calculades
-a través de les funcions **actualitzarCreences i observe**.
+A l'hora de seleccionar quin moviment ha de realitzar un agent determinat ho farà a través d'un algoritme **Expectimax** assumint la posició més aproximada de l'enemic en base a les creences que te les quals seran aproximacions calculades a través de les funcions **updateBeliefs i observe**.
 
 ```python
-def actualitzarCreences(self, enemy):
+def updateBeliefs(self, enemy):
     """
     Comprova totes les possibles posicions succesores i que sigui legal el moviment i
     es reparteix de manera uniforme la distribucio de probabilitats
@@ -16,7 +13,7 @@ def actualitzarCreences(self, enemy):
     newBelief = util.Counter()
     # legalPositions es una llista de tuples (x,y)
     for oldPos in self.legalPositions:
-        # Get the new probability distribution.
+        # Obtenim la nova distribució de probabilitats
         newPosDist = util.Counter()
 
         # Mirem les possibles posicions succesores
@@ -27,7 +24,7 @@ def actualitzarCreences(self, enemy):
                     if pos_pos in self.legalPositions:
                         newPosDist[pos_pos] = 1.0
 
-        # Normalitzem mov rand
+        # Normalitzem les probabilitats
         newPosDist.normalize()
 
         # Noves creences
@@ -38,59 +35,6 @@ def actualitzarCreences(self, enemy):
     # Normalize and update the belief.
     newBelief.normalize()
     self.beliefs[enemy] = newBelief
-
-    def observe(self, enemy, observation, gameState):
-        """
-        Funció d'acotament per determinar més exactament la possible
-        posició enemiga (creences).
-        @param: gameState state of the game.
-        @param: observation int list of 4 elements with noisy distance
-                between current agent and all agents.
-        """
-        # Obtenim la distància al enemic
-        noisyDistance = observation[enemy]
-
-        # La nostra posició
-        myPos = gameState.getAgentPosition(self.index)
-
-        # Diccionari per a guardar les suposicions per al enemic actual
-        newBelief = util.Counter()
-
-        # Actualitzem les creences de les posicions legalse del tauler.
-        for pos in self.legalPositions:
-            # Distancia real entre l'agent actual i la posicio iteració
-            trueDistance = util.manhattanDistance(myPos, pos)
-
-            # Probabilitat tenint en compte la distancia real i la probable
-            # P(e_t|x_t).
-            emissionModel = gameState.getDistanceProb(trueDistance, noisyDistance)
-
-            # Podem descartar que una posicio sigui real
-            # comrovant el tipus d'agent que es pacman o fasntasma i sapiguent
-            # a quin camp es troba.
-            if self.red:
-                pac = pos[0] < self.midWidth
-            else:
-                pac = pos[0] > self.midWidth
-
-            # Si la distancia real es inferior a 6 la descartem perque tindria
-            # visio de l'objectiu i no estaria al vector de distancies de sons
-            # si no a les distancies reals
-            if trueDistance <= 5:
-                newBelief[pos] = 0.
-            elif pac != gameState.getAgentState(enemy).isPacman:
-                newBelief[pos] = 0.
-            else:
-                # P(x_t|e_1:t) = P(x_t|e_1:t) * P(e_t:x_t).
-                newBelief[pos] = self.beliefs[enemy][pos] * emissionModel
-
-        # Si no tenim creences inicialitzem de manera uniforme per cada posicio
-        # altrament normalitzem i actualitzem amb les noves creences
-        if newBelief.totalCount() == 0:
-            self.initializeBeliefs(enemy)
-        else:
-            newBelief.normalize()
-            self.beliefs[enemy] = newBelief
 ```
 
 En quan els comportaments específics, l'agent ofensiu l'hem disanyat a través d'una funció d'evaluació perque el seu comportament es basi en entrar i moures
@@ -104,7 +48,7 @@ i tinguem el **power-up** actiu.
 ## Acotament de les cerques
 Degut a que alhora d'obtenir les distancies dels sons ens retornava masses
 posicions a evaluar i que algunes d'elles eren impossibles hem decidit acotarles
-amb les seguents regles-
+amb les seguents regles:
 
 - Si una lectura es troba en una posició en la que hauria d'estar l'enemic en forma de pacman la descartem (**prob=0.**) si no ho es, tot aixó verificant l'estat a través de la funció:
 
@@ -114,6 +58,60 @@ amb les seguents regles-
 - Comprovar si una lectura de so es troba dins el nostre rang de visió **<6**,
 en aquest cas ens hauria d'apareixer dins les lectures reals, si no ho fa la podem descartar (**prob = 0.**).  
 
+  ```python
+  def observe(self, enemy, observation, gameState):
+      """
+      Funció d'acotament per determinar més exactament la possible
+      posició enemiga (creences).
+      @param: gameState state of the game.
+      @param: observation int list of 4 elements with noisy distance
+              between current agent and all agents.
+      """
+      # Obtenim la distància al enemic
+      noisyDistance = observation[enemy]
+
+      # La nostra posició
+      myPos = gameState.getAgentPosition(self.index)
+
+      # Diccionari per a guardar les suposicions per al enemic actual
+      newBelief = util.Counter()
+
+      # Actualitzem les creences de les posicions legalse del tauler.
+      for pos in self.legalPositions:
+          # Distancia real entre l'agent actual i la posicio iteració
+          trueDistance = util.manhattanDistance(myPos, pos)
+
+          # Probabilitat tenint en compte la distancia real i la probable
+          # P(e_t|x_t).
+          emissionModel = gameState.getDistanceProb(trueDistance, noisyDistance)
+
+          # Podem descartar que una posicio sigui real
+          # comrovant el tipus d'agent que es pacman o fasntasma i sapiguent
+          # a quin camp es troba.
+          if self.red:
+              pac = pos[0] < self.midWidth
+          else:
+              pac = pos[0] > self.midWidth
+
+          # Si la distancia real es inferior a 6 la descartem perque tindria
+          # visio de l'objectiu i no estaria al vector de distancies de sons
+          # si no a les distancies reals
+          if trueDistance <= 5:
+              newBelief[pos] = 0.
+          elif pac != gameState.getAgentState(enemy).isPacman:
+              newBelief[pos] = 0.
+          else:
+              # P(x_t|e_1:t) = P(x_t|e_1:t) * P(e_t:x_t).
+              newBelief[pos] = self.beliefs[enemy][pos] * emissionModel
+
+      # Si no tenim creences inicialitzem de manera uniforme per cada posicio
+      # altrament normalitzem i actualitzem amb les noves creences
+      if newBelief.totalCount() == 0:
+          self.initializeBeliefs(enemy)
+      else:
+          newBelief.normalize()
+          self.beliefs[enemy] = newBelief
+  ```
 
 # Visió desglosada dels diferents comportaments dels agents
 
@@ -157,6 +155,6 @@ El comportament defensiu es basa en un equilibri entre defensa i atac, es a dir,
 la seva funció principal és defensar el territori dels enemics que entrin però
 també podra atacar si es nesesari (quan no hi hagi gaire risc).
 
-Per determinar si defensar o atacar ens basem en si hi ha algun enemic en forma de pacman, si es el cas es que l'enemic esta etacant per tant l'agent entrara en mode defensiu altrament entrara en mode atac si tenim el **power-up actiu**.
+Per determinar si defensar o atacar ens basem en si hi ha algun enemic en forma de pacman, si és el cas en que l'enemic esta etacant per tant l'agent entrara en mode defensiu altrament entrara en mode atac si tenim el **power-up actiu**.
 
 En cas d'estar en mode defensiu la funció d¡evaluacio buscara el moviment que minimitzi la distancia entre l'agent actual i l'enemic més proper, altrament en cas d'estar atacant, utilitzara la funcio de l'agent atacant i es mantindrà atacant fins que torni a tocar defensar.
