@@ -86,7 +86,6 @@ class ParentAgent(CaptureAgent):
         # que representen les distàncies
         noisyDistances = gameState.getAgentDistances()
 
-        # Makes a copy of game state
         newState = gameState.deepCopy()
 
         # For any enemy agent tries to get visual contact of enemy
@@ -102,9 +101,6 @@ class ParentAgent(CaptureAgent):
                 self.actualitzarCreences(enemy)
                 self.observe(enemy, noisyDistances, gameState)
 
-        # Using the most probable position update the game state.
-        # In order to use expectimax we need to be able to have a set
-        # position where the enemy is starting out.
         for enemy in self.enemies:
             prob_pos = self.beliefs[enemy].argMax()
             conf = game.Configuration(prob_pos, Directions.STOP)
@@ -122,7 +118,7 @@ class ParentAgent(CaptureAgent):
         es reparteix de manera uniforme la distribucio de probabilitats
         """
         newBelief = util.Counter()
-        # legalPositions is a list of tuples (x,y)
+        # legalPositions es una llista de tuples (x,y)
         for oldPos in self.legalPositions:
             # Get the new probability distribution.
             newPosDist = util.Counter()
@@ -135,10 +131,10 @@ class ParentAgent(CaptureAgent):
                         if pos_pos in self.legalPositions:
                             newPosDist[pos_pos] = 1.0
 
-            # Normalize to be unifom assuming the movement is random.
+            # Normalitzem mov rand
             newPosDist.normalize()
 
-            # Get the new belief distibution.
+            # Noves creences
             for newPos, prob in newPosDist.items():
                 # Update the probabilities for each of the positions.
                 newBelief[newPos] += prob * self.beliefs[enemy][oldPos]
@@ -425,7 +421,7 @@ class DefensiveAgent(ParentAgent):
         powerTimes = [gameState.getAgentState(enemy).scaredTimer
                       for enemy in self.enemies]
 
-        # Si no hi ha enemics atacant o tenim el power-up actiu pasem l'agent
+        # Si no hi ha enemics atacant i tenim el power-up actiu pasem l'agent
         # a l'atac
         self.offensing = not invaders and min(powerTimes) > 8
 
