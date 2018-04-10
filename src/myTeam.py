@@ -416,12 +416,13 @@ class DefensiveAgent(ParentAgent):
 
     def chooseAction(self, gameState):
         # Mirem s'hi ha algun enemic en forma de pacman (atacant)
-        invaders = [enemy_agent for enemy_agent in self.enemies if
-                    gameState.getAgentState(enemy_agent).isPacman]
+        invaders = [enemy_agent
+                    for enemy_agent in self.enemies
+                    if gameState.getAgentState(enemy_agent).isPacman]
 
         # Mirem si tenim el power-up actiu.
-        powerTimes = [gameState.getAgentState(enemy).scaredTimer for enemy in
-                       self.enemies]
+        powerTimes = [gameState.getAgentState(enemy).scaredTimer
+                      for enemy in self.enemies]
 
         # Si no hi ha enemics atacant o tenim el power-up actiu pasem l'agent
         # a l'atac
@@ -430,5 +431,34 @@ class DefensiveAgent(ParentAgent):
         return ParentAgent.chooseAction(self, gameState)
 
     def evaluateGameState(self, gameState):
+        # Posicio del nostre agent actual
+        currentPos = gameState.getAgentPosition(self.index)
+
+        # Distancies fins als agents enemics
+        enemyDistances = self.enemyDistances(gameState)
+
+        # Mirem s'hi ha algun enemic en forma de pacman (atacant)
+        invaders = [enemy_agent
+                    for enemy_agent in self.enemies
+                    if gameState.getAgentState(enemy_agent).isPacman]
+
+        minimPacDistance = False
+        minimGhostDistance = False
+        # Calculem la distancia més propera al pacman enemic més proper si n'hi ha
+        # Calculem la distancia minima al fantasma més proper si n'hi ha
+        for id, dist in enemyDistances:
+            minimPacDistance = dist if (not minimPacDistance or dist < minimPacDistance) and id in invaders else minimPacDistance
+            minimGhostDistance = dist if (not minimGhostDistance or dist < minimGhostDistance) and id not in invaders else minimGhostDistance
+        minimPacDistance = 0 if not minimPacDistance else minimPacDistance
+        minimGhostDistance = 0 if not minimGhostDistance else minimGhostDistance
+
+        # Calculem la distancia minima al menjar
+        minFoodDistance = False
+        for food in self.getFood(gameState).asList():
+            dist = self.distancer.getDistance(currentPos, food)
+            minFoodDistance = dist if not dist or dist < minFoodDistance else minFoodDistance
+        minFoodDistance = 0 if not minFoodDistance else minFoodDistance
+
+
         return 1
 
