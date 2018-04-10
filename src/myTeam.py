@@ -14,9 +14,10 @@
 
 
 from captureAgents import CaptureAgent
-import random, time, util
+import random, util
 from game import Directions
 import game
+import sys
 
 #################
 # Team creation #
@@ -45,7 +46,7 @@ def createTeam(
 # Agents #
 ##########
 
-DEPTH = 2
+EXPECTIMAX_DEPTH = 2
 MOVE_RANGE = [-1, 0, 1]
 
 
@@ -53,22 +54,14 @@ class ParentAgent(CaptureAgent):
 
     def registerInitialState(self, gameState):
         CaptureAgent.registerInitialState(self, gameState)
-        # Posicio inicial de l'agent
-        self.start = gameState.getInitialAgentPosition(self.index)
         # Punt mig del tauler
         self.midWidth = gameState.data.layout.width / 2
+
         # Totes les posicions legals del tauler on un agent pot estar
         self.legalPositions = [p for p in gameState.getWalls().asList(False) if p[1] > 1]
 
         # Llista de distancies
         self.distancer.getMazeDistances()
-
-        # Indexs dels nostres agents.
-        self.team = self.getTeam(gameState)
-
-        # Flag per saber si esta atacant.
-        # TODO aixo hauria d'anar nomes al defensiu
-        self.offensing = False
 
         # Indexs enemics.
         self.enemies = self.getOpponents(gameState)
@@ -106,7 +99,7 @@ class ParentAgent(CaptureAgent):
                 self.beliefs[enemy] = new_belief
             else:
                 # If not visual contact observe and move
-                self.actualitzarCreences(enemy, gameState)
+                self.actualitzarCreences(enemy)
                 self.observe(enemy, noisyDistances, gameState)
 
         # Using the most probable position update the game state.
@@ -119,14 +112,14 @@ class ParentAgent(CaptureAgent):
               enemy))
 
         # TODO imp effi
-        action = self.maxFunction(newState, depth=DEPTH)[1]
+        action = self.maxFunction(newState, depth=EXPECTIMAX_DEPTH)[1]
 
         return action
 
-    def actualitzarCreences(self, enemy, gameState):
+    def actualitzarCreences(self, enemy):
         """
         Comprova totes les possibles posicions succesores i que sigui legal el moviment i
-        es reaparteix de manera uniforme la distribucio de probabilitats
+        es reparteix de manera uniforme la distribucio de probabilitats
         """
         newBelief = util.Counter()
         # legalPositions is a list of tuples (x,y)
@@ -158,7 +151,7 @@ class ParentAgent(CaptureAgent):
         """
         Funció d'acotament per determinar més exactament la possible
         posició enemiga (creences).
-        @param: gameState string map of game.
+        @param: gameState state of the game.
         @param: observation int list of 4 elements with noisy distance
                 between current agent and all agents.
         """
@@ -172,9 +165,9 @@ class ParentAgent(CaptureAgent):
         newBelief = util.Counter()
 
         # Actualitzem les creences de les posicions legalse del tauler.
-        for p in self.legalPositions:
+        for pos in self.legalPositions:
             # Distancia real entre l'agent actual i la posicio iteració
-            trueDistance = util.manhattanDistance(myPos, p)
+            trueDistance = util.manhattanDistance(myPos, pos)
 
             # Probabilitat tenint en compte la distancia real i la probable
             # P(e_t|x_t).
@@ -184,20 +177,20 @@ class ParentAgent(CaptureAgent):
             # comrovant el tipus d'agent que es pacman o fasntasma i sapiguent
             # a quin camp es troba.
             if self.red:
-                pac = p[0] < self.midWidth
+                pac = pos[0] < self.midWidth
             else:
-                pac = p[0] > self.midWidth
+                pac = pos[0] > self.midWidth
 
             # Si la distancia real es inferior a 6 la descartem perque tindria
             # visio de l'objectiu i no estaria al vector de distancies de sons
             # si no a les distancies reals
             if trueDistance <= 5:
-                newBelief[p] = 0.
+                newBelief[pos] = 0.
             elif pac != gameState.getAgentState(enemy).isPacman:
-                newBelief[p] = 0.
+                newBelief[pos] = 0.
             else:
                 # P(x_t|e_1:t) = P(x_t|e_1:t) * P(e_t:x_t).
-                newBelief[p] = self.beliefs[enemy][p] * emissionModel
+                newBelief[pos] = self.beliefs[enemy][pos] * emissionModel
 
         # Si no tenim creences inicialitzem de manera uniforme per cada posicio
         # altrament normalitzem i actualitzem amb les noves creences
@@ -302,6 +295,7 @@ class ParentAgent(CaptureAgent):
         Funcio per retornar la distacia als agenents enemics.
         En el cas que no coneguem la posicio exacte de l'enemic agafem la crence
         amb clau mes alta (més aproximada)
+
         @returns list amb les distacies entre la posicio de l'agent actual
         i les possibles "posicions" enemigas
         """
@@ -328,6 +322,8 @@ class OffensiveAgent(ParentAgent):
         # Si tenim prou menjar és moment de retirar-nos a un lloc segur
         if gameState.getAgentState(self.index).numCarrying > enoughFood:
             self.retreating = True
+        else:
+            self.retreating = False
         return ParentAgent.chooseAction(self, gameState)
 
     def evaluateGameState(self, gameState):
@@ -336,26 +332,37 @@ class OffensiveAgent(ParentAgent):
         vista de un agent ofensiu. Valorarà:
             - La posició dels fantasmes enemics
             - La posició dels powerups enemics
+
         :return:
         """
-        # Obtenir distancia al mig del tauler
+        # Obtenim la nostra posicio
         myPos = gameState.getAgentPosition(self.index)
 
         # Obtenir distancies cap als dos enemics
         enemyDists = []
+        nearestGhostDistance = sys.maxsize
         for enemy in self.enemies:
             if not gameState.getAgentState(enemy).isPacman:
                 enemyPos = gameState.getAgentPosition(enemy)
                 if enemyPos:
-                    enemyDists.append(self.distancer.getDistance(myPos, enemyPos))
+                    distance = self.distancer.getDistance(myPos, enemyPos)
+                    enemyDists.append(distance)
+                    if distance < nearestGhostDistance:
+                        scaredTimer = gameState.getAgentState(enemy).scaredTimer
+                        nearestGhostDistance = distance
+                        if 0 < scaredTimer and distance < 4:
+                            enemyDists[-1] *= -100
 
         # Obtenir la puntuació segons si hi ha enemics a prop
-        enemiesDistanceScore = 0
         if enemyDists:
-            enemiesDistanceScore = min(enemyDists) if min(enemyDists) < 6 else 0
+            minDists = min(enemyDists)
+            enemiesDistanceScore = minDists if minDists < 6 else 0
+        else:
+            enemiesDistanceScore = 0
 
         # Si tenim prou menjar hem de fugir a deixar-lo a lloc segur
         if self.retreating:
+            # Obtenir distancia al mig del tauler
             distanceToMiddle = min(
                 [
                     self.distancer.getDistance(
@@ -387,15 +394,9 @@ class OffensiveAgent(ParentAgent):
             for food in targetFood
         ])
 
-        scaredTimes = [
-            gameState.getAgentState(enemy).scaredTimer
-            for enemy in self.enemies
-        ]
-        if scaredTimes <= 6 and enemiesDistanceScore < 4:
-            enemiesDistanceScore *= 1
         return (
-            2 * self.getScore(gameState) - 100 * len(targetFood) -
-            3 * nearerFood - 10000 * len(powerups) -
+            2 * self.getScore(gameState) - 1000 * len(targetFood) -
+            3 * nearerFood - 100 * len(powerups) -
             5 * powerupsDistancesScore + 100 * enemiesDistanceScore
         )
 
