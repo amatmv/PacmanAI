@@ -401,11 +401,32 @@ class OffensiveAgent(ParentAgent):
 
 
 class DefensiveAgent(ParentAgent):
-
+    '''
+    L'agent defensor és l'encarregat de que quan detecti que un agent enemic
+    esta en el nostre territori, s'encarregui de persaguir-lo retornant la
+    accio que mes s'apropi a la posible posició de l'enemic.
+    En cas que no hi hagi cap agent enemic en el nostre tarreny pasara a mode
+    ofensiu executant la funcio d'evaluacio de l'agent ofeensiu.
+    '''
     def registerInitialState(self, gameState):
+        # Posicio actual de l'agent
         ParentAgent.registerInitialState(self, gameState)
+        # Variable per saber si l'agent ha de pasar a mode ofensiu
+        self.offensing = False
 
     def chooseAction(self, gameState):
+        # Mirem s'hi ha algun enemic en forma de pacman (atacant)
+        invaders = [enemy_agent for enemy_agent in self.enemies if
+                    gameState.getAgentState(enemy_agent).isPacman]
+
+        # Mirem si tenim el power-up actiu.
+        powerTimes = [gameState.getAgentState(enemy).scaredTimer for enemy in
+                       self.enemies]
+
+        # Si no hi ha enemics atacant o tenim el power-up actiu pasem l'agent
+        # a l'atac
+        self.offensing = not invaders or min(powerTimes) > 8
+
         return ParentAgent.chooseAction(self, gameState)
 
     def evaluateGameState(self, gameState):
