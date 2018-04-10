@@ -154,6 +154,12 @@ class ParentAgent(CaptureAgent):
         newBelief.normalize()
         self.beliefs[enemy] = newBelief
 
+    def inOurTerritory(self, position):
+        if self.red:
+            return position[0] < self.midWidth
+        else:
+            return position[0] > self.midWidth
+
     def observe(self, enemy, observation, gameState):
         """
         Funció d'acotament per determinar més exactament la possible
@@ -180,12 +186,9 @@ class ParentAgent(CaptureAgent):
             emissionModel = gameState.getDistanceProb(trueDistance, noisyDistance)
 
             # Podem descartar que una posicio sigui real
-            # comrovant el tipus d'agent que es pacman o fasntasma i sapiguent
+            # comrovant el tipus d'agent que es pacman o fantasma i sapiguent
             # a quin camp es troba.
-            if self.red:
-                pac = pos[0] < self.midWidth
-            else:
-                pac = pos[0] > self.midWidth
+            pac = self.inOurTerritory(pos)
 
             # Si la distancia real es inferior a 6 la descartem perque tindria
             # visio de l'objectiu i no estaria al vector de distancies de sons
@@ -337,37 +340,38 @@ class OffensiveAgent(ParentAgent):
         vista de un agent ofensiu. Valorarà:
             - La quantitat i la distància dels fantasmes enemics
             - La quantitat i la distància dels powerups enemics
-            -
-        :return:
+            - La quantitat de menjar, el qual sempre busca activament
+            - Si els enemics estàn espantats
+        @returns el valor de puntuació de l'estat del tauler actual
         """
+
         # Obtenim la nostra posicio
         myPos = gameState.getAgentPosition(self.index)
 
         # Obtenir distancies cap als dos enemics
         enemyDists = []
-        nearestGhostDistance = sys.maxsize
-        appendFunc = enemyDists.append
         for enemy in self.enemies:
             # if not gameState.getAgentState(enemy).isPacman:
             enemyPos = gameState.getAgentPosition(enemy)
             if enemyPos:
                 # Si trobem algun enemic, volem trobar la distancia
-                distance = self.distancer.getDistance(myPos, enemyPos)
-                appendFunc(distance)
-                if distance < nearestGhostDistance:
-                    # En el cas que sigui el fantasma mes proper,
-                    # si està espantat, interessa atacar-lo
-                    scaredTimer = gameState.getAgentState(enemy).scaredTimer
-                    nearestGhostDistance = distance
-                    if 0 < scaredTimer and distance < 4:
-                        enemyDists[-1] *= -100
+                enemyDists.append(
+                    self.distancer.getDistance(myPos, enemyPos)
+                )
 
         # Obtenir la puntuació segons si hi ha enemics a prop
-        if enemyDists:
-            minDists = min(enemyDists)
-            enemiesDistanceScore = minDists if minDists < 6 else 0
-        else:
-            enemiesDistanceScore = 0
+
+        nearestGhostDistance = min(enemyDists) if enemyDists and min(enemyDists) < 6 else 0
+
+        scaredTimes = [
+            gameState.getAgentState(enemy).scaredTimer
+            for enemy in self.enemies
+        ]
+
+        # Invertir puntuacio si els enemics estan espantats, ja que se'ls
+        # poden menjar
+        if min(scaredTimes) <= 6 and nearestGhostDistance < 4:
+            nearestGhostDistance *= -1
 
         # Si tenim prou menjar hem de fugir a deixar-lo a lloc segur
         if self.retreating:
@@ -382,7 +386,7 @@ class OffensiveAgent(ParentAgent):
                     if (self.midWidth, i) in self.legalPositions
                 ]
             )
-            return -1000 * distanceToMiddle + enemiesDistanceScore
+            return -1000 * distanceToMiddle + nearestGhostDistance
 
         # Obtenir distancia cap al powerup
         if self.red:
@@ -393,11 +397,7 @@ class OffensiveAgent(ParentAgent):
         powerupsDistances = tuple(
             self.distancer.getDistance(myPos, pwup) for pwup in powerups
         )
-
-        if powerupsDistances:
-            powerupsDistancesScore = min(powerupsDistances) * 2
-        else:
-            powerupsDistancesScore = 0
+        powerupsDistancesScore = min(powerupsDistances) if powerupsDistances else 0
 
         # Menjar proper per anar a buscar-lo
         targetFood = self.getFood(gameState).asList()
@@ -407,9 +407,9 @@ class OffensiveAgent(ParentAgent):
         ])
 
         return (
-            2 * self.getScore(gameState) - 500 * len(targetFood) -
-            3 * nearestFoodDistance - 1000 * len(powerups) -
-            5 * powerupsDistancesScore + 100 * enemiesDistanceScore
+            2 * self.getScore(gameState) - 10 * len(targetFood) -
+            3 * nearestFoodDistance - 10000 * len(powerups) -
+            5 * powerupsDistancesScore + 500 * nearestGhostDistance
         )
 
 
