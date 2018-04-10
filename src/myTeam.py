@@ -5,7 +5,7 @@
 # educational purposes provided that (1) you do not distribute or publish
 # solutions, (2) you retain this notice, and (3) you provide clear
 # attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
-# 
+#
 # Attribution Information: The Pacman AI projects were developed at UC Berkeley.
 # The core projects and autograders were primarily created by John DeNero
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
@@ -109,7 +109,7 @@ class ParentAgent(CaptureAgent):
                 self.beliefs[enemy] = new_belief
             else:
                 # If not visual contact observe and move
-                self.actualitzarCreences(enemy)
+                self.updateBeliefs(enemy)
                 self.observe(enemy, noisyDistances, gameState)
 
         for enemy in self.enemies:
@@ -123,7 +123,7 @@ class ParentAgent(CaptureAgent):
 
         return action
 
-    def actualitzarCreences(self, enemy):
+    def updateBeliefs(self, enemy):
         """
         Comprova totes les possibles posicions succesores i que sigui legal el moviment i
         es reparteix de manera uniforme la distribucio de probabilitats
@@ -131,7 +131,7 @@ class ParentAgent(CaptureAgent):
         newBelief = util.Counter()
         # legalPositions es una llista de tuples (x,y)
         for oldPos in self.legalPositions:
-            # Get the new probability distribution.
+            # Obtenim la nova distribució de probabilitats
             newPosDist = util.Counter()
 
             # Mirem les possibles posicions succesores
@@ -142,7 +142,7 @@ class ParentAgent(CaptureAgent):
                         if pos_pos in self.legalPositions:
                             newPosDist[pos_pos] = 1.0
 
-            # Normalitzem mov rand
+            # Normalitzem les probabilitats
             newPosDist.normalize()
 
             # Noves creences
@@ -168,16 +168,15 @@ class ParentAgent(CaptureAgent):
         # La nostra posició
         myPos = gameState.getAgentPosition(self.index)
 
-        # Diccionari per a guardar les suposicions per al enemic actual
+        # Diccionari per a guardar les creences per al enemic actual
         newBelief = util.Counter()
 
-        # Actualitzem les creences de les posicions legalse del tauler.
+        # Actualitzem les creences de les posicions legals del tauler.
         for pos in self.legalPositions:
             # Distancia real entre l'agent actual i la posicio iteració
             trueDistance = util.manhattanDistance(myPos, pos)
 
             # Probabilitat tenint en compte la distancia real i la probable
-            # P(e_t|x_t).
             emissionModel = gameState.getDistanceProb(trueDistance, noisyDistance)
 
             # Podem descartar que una posicio sigui real
@@ -196,7 +195,6 @@ class ParentAgent(CaptureAgent):
             elif pac != gameState.getAgentState(enemy).isPacman:
                 newBelief[pos] = 0.
             else:
-                # P(x_t|e_1:t) = P(x_t|e_1:t) * P(e_t:x_t).
                 newBelief[pos] = self.beliefs[enemy][pos] * emissionModel
 
         # Si no tenim creences inicialitzem de manera uniforme per cada posicio
@@ -488,5 +486,3 @@ class DefensiveAgent(ParentAgent):
             return -999999 * len(invaders) - 10 * minimPacDistance - minPowerDistance
         else:
             return 2 * self.getScore(gameState) - 100 * len(foodList) - 3 * minFoodDistance + minimGhostDistance
-
-
