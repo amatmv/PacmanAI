@@ -454,7 +454,8 @@ class DefensiveAgent(ParentAgent):
 
         # Calculem la distancia minima al menjar
         minFoodDistance = False
-        for food in self.getFood(gameState).asList():
+        foodList = self.getFood(gameState).asList()
+        for food in foodList:
             dist = self.distancer.getDistance(currentPos, food)
             minFoodDistance = dist if not minFoodDistance or dist < minFoodDistance else minFoodDistance
         minFoodDistance = 0 if not minFoodDistance else minFoodDistance
@@ -467,6 +468,10 @@ class DefensiveAgent(ParentAgent):
             minPowerDistance = dist if not minPowerDistance or dist < minPowerDistance else minPowerDistance
         minPowerDistance = 0 if not minPowerDistance else minPowerDistance
 
+        if not self.offensing:
+            # Si estem defensant ens fixem en el nombre d'enemics i la distancia minima entre ells i l'agent actual
+            return -999999 * len(invaders) - 10 * minimPacDistance - minPowerDistance
+        else:
+            return 2 * self.getScore(gameState) - 100 * len(foodList) - 3 * minFoodDistance + minimGhostDistance
 
-        return 1
 
