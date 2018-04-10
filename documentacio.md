@@ -58,65 +58,64 @@ amb les seguents regles:
 - Comprovar si una lectura de so es troba dins el nostre rang de visió **<6**,
 en aquest cas ens hauria d'apareixer dins les lectures reals, si no ho fa la podem descartar (**prob = 0.**).  
 
-  ```python
-  def observe(self, enemy, observation, gameState):
-      """
-      Funció d'acotament per determinar més exactament la possible
-      posició enemiga (creences).
-      @param: gameState state of the game.
-      @param: observation int list of 4 elements with noisy distance
-              between current agent and all agents.
-      """
-      # Obtenim la distància al enemic
-      noisyDistance = observation[enemy]
+```python
+def observe(self, enemy, observation, gameState):
+    """
+    Funció d'acotament per determinar més exactament la possible
+    posició enemiga (creences).
+    @param: gameState state of the game.
+    @param: observation int list of 4 elements with noisy distance
+            between current agent and all agents.
+    """
+    # Obtenim la distància al enemic
+    noisyDistance = observation[enemy]
 
-      # La nostra posició
-      myPos = gameState.getAgentPosition(self.index)
+    # La nostra posició
+    myPos = gameState.getAgentPosition(self.index)
 
-      # Diccionari per a guardar les suposicions per al enemic actual
-      newBelief = util.Counter()
+    # Diccionari per a guardar les suposicions per al enemic actual
+    newBelief = util.Counter()
 
-      # Actualitzem les creences de les posicions legalse del tauler.
-      for pos in self.legalPositions:
-          # Distancia real entre l'agent actual i la posicio iteració
-          trueDistance = util.manhattanDistance(myPos, pos)
+    # Actualitzem les creences de les posicions legalse del tauler.
+    for pos in self.legalPositions:
+        # Distancia real entre l'agent actual i la posicio iteració
+        trueDistance = util.manhattanDistance(myPos, pos)
 
-          # Probabilitat tenint en compte la distancia real i la probable
-          # P(e_t|x_t).
-          emissionModel = gameState.getDistanceProb(trueDistance, noisyDistance)
+        # Probabilitat tenint en compte la distancia real i la probable
+        # P(e_t|x_t).
+        emissionModel = gameState.getDistanceProb(trueDistance, noisyDistance)
 
-          # Podem descartar que una posicio sigui real
-          # comrovant el tipus d'agent que es pacman o fasntasma i sapiguent
-          # a quin camp es troba.
-          if self.red:
-              pac = pos[0] < self.midWidth
-          else:
-              pac = pos[0] > self.midWidth
+        # Podem descartar que una posicio sigui real
+        # comrovant el tipus d'agent que es pacman o fasntasma i sapiguent
+        # a quin camp es troba.
+        if self.red:
+            pac = pos[0] < self.midWidth
+        else:
+            pac = pos[0] > self.midWidth
 
-          # Si la distancia real es inferior a 6 la descartem perque tindria
-          # visio de l'objectiu i no estaria al vector de distancies de sons
-          # si no a les distancies reals
-          if trueDistance <= 5:
-              newBelief[pos] = 0.
-          elif pac != gameState.getAgentState(enemy).isPacman:
-              newBelief[pos] = 0.
-          else:
-              # P(x_t|e_1:t) = P(x_t|e_1:t) * P(e_t:x_t).
-              newBelief[pos] = self.beliefs[enemy][pos] * emissionModel
+        # Si la distancia real es inferior a 6 la descartem perque tindria
+        # visio de l'objectiu i no estaria al vector de distancies de sons
+        # si no a les distancies reals
+        if trueDistance <= 5:
+            newBelief[pos] = 0.
+        elif pac != gameState.getAgentState(enemy).isPacman:
+            newBelief[pos] = 0.
+        else:
+            # P(x_t|e_1:t) = P(x_t|e_1:t) * P(e_t:x_t).
+            newBelief[pos] = self.beliefs[enemy][pos] * emissionModel
 
-      # Si no tenim creences inicialitzem de manera uniforme per cada posicio
-      # altrament normalitzem i actualitzem amb les noves creences
-      if newBelief.totalCount() == 0:
-          self.initializeBeliefs(enemy)
-      else:
-          newBelief.normalize()
-          self.beliefs[enemy] = newBelief
-  ```
+    # Si no tenim creences inicialitzem de manera uniforme per cada posicio
+    # altrament normalitzem i actualitzem amb les noves creences
+    if newBelief.totalCount() == 0:
+        self.initializeBeliefs(enemy)
+    else:
+        newBelief.normalize()
+        self.beliefs[enemy] = newBelief
+```
 
 # Visió desglosada dels diferents comportaments dels agents
 
 ## Comportament Ofensiu
-![pacman of](img/pac_of.png)
 
 El comportament ofensiu es basa en entrar en el territori recollir tot el menjar possible i no ser "caçat", per això la nostra funció d'evaluació es basa en trobar un equilibri entre risc i recompensa on la nostre prioritat és no ser "caçats".
 
@@ -131,7 +130,6 @@ Quan el nostre equip ja te una puntuació mitjanament alta generalment el menjar
 
 
 ## Comporament Defensiu
-![pacman of](img/pac_Def.png)
 
 ```python
 def chooseAction(self, gameState):
